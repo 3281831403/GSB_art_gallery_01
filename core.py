@@ -2,9 +2,20 @@
 
 import json
 
+DEPOSIT_PER_EXHIBIT = 20
+HALL_CAPACITY = 2
+
 
 def new_game():
-    return {"exhibits": {}, "hall_load": 0, "hall_capacity": 2, "deposit": 100, "day": 1, "exhibit_id": 0}
+    return {
+        "exhibits": {},
+        "hall_load": 0,
+        "hall_capacity": HALL_CAPACITY,
+        "deposit": 100,
+        "day": 1,
+        "exhibit_id": 0,
+        "guides": {"G1": True},
+    }
 
 
 def save_state(state):
@@ -12,45 +23,67 @@ def save_state(state):
 
 
 def load_state(text):
-    state = json.loads(text)
-    state["exhibit_id"] += 1
-    return state
+    return json.loads(text)
 
 
 def register(state, exhibit_id):
+    if exhibit_id in state["exhibits"]:
+        return False
     state["exhibits"][exhibit_id] = {"health": 100}
     return True
 
 
 def place(state, exhibit_id):
+    exhibit = state["exhibits"].get(exhibit_id)
+    if exhibit is None:
+        return False
+    if exhibit.get("placed"):
+        return False
+    if state["hall_load"] >= state["hall_capacity"]:
+        return False
+    exhibit["placed"] = True
     state["hall_load"] += 1
     return True
 
 
 def fee(state, exhibit_id, end_day):
-    return (end_day - state["day"]) - 1
+    return end_day - state["day"]
 
 
 def cancel(state, exhibit_id):
+    exhibit = state["exhibits"].get(exhibit_id)
+    if exhibit is not None and exhibit.get("placed"):
+        exhibit["placed"] = False
+        state["hall_load"] -= 1
+    state["deposit"] += DEPOSIT_PER_EXHIBIT
     return True
 
 
 def assign(state, exhibit_id, guide):
-    state["exhibits"][exhibit_id]["guide"] = guide
+    exhibit = state["exhibits"].get(exhibit_id)
+    if exhibit is None:
+        return False
+    if not state.get("guides", {}).get(guide, False):
+        return False
+    exhibit["guide"] = guide
     return True
 
 
 def setup(state, exhibit_id):
-    if state["exhibits"][exhibit_id].get("failed"):
-        state["deposit"] -= 1
+    exhibit = state["exhibits"].get(exhibit_id)
+    if exhibit is None:
+        return False
+    if exhibit.get("failed"):
         return False
     state["deposit"] -= 1
     return True
 
 
 def damage(state, exhibit_id):
-    state["exhibits"][exhibit_id]["health"] -= 10
-    state["exhibits"][exhibit_id]["health"] -= 10
+    exhibit = state["exhibits"].get(exhibit_id)
+    if exhibit is None:
+        return False
+    exhibit["health"] -= 10
     return True
 
 
